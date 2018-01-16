@@ -15,8 +15,8 @@ function template(details, image) {
   return `
 ---
 name: ${details.name}
-title: ${details.title}
-${image && `avatar: ${image}`}
+title: ${details.title || 'Unknown Title'}
+avatar: ${image || 'avatars/fallback.jpeg'}
 ${
   (details.social || [])
     .map(([site, href]) => `${site}: ${href}`)
@@ -32,7 +32,9 @@ async function run() {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
 
-  await mkdir('output/people');
+  const base = path.resolve('output');
+
+  await mkdir(base);
     
   await page.goto('https://objectpartners.com/about');
 
@@ -64,9 +66,9 @@ async function run() {
       };
     });
 
-    const person = `output/people/${slugify(details.name)}`;
+    await mkdir(path.join(base, 'avatars'));
 
-    await mkdir(person);
+    const person = slugify(details.name);
 
     let imageName;
     if (details.avatar) {
@@ -75,15 +77,15 @@ async function run() {
       })
         .then(response => {
           const ext = details.avatar.split('.').pop();
-          const name = `avatar.${ext === 'jpg' ? 'jpeg' : ext}`;
-          return fs.writeFile(path.join(person, name), response.body, 'binary')
-            .then(() => name);
+          const normalizedExt = ext === 'jpg' ? 'jpeg' : ext;
+          const name = `${person}.${normalizedExt}`;
+          return fs.writeFile(path.join(base, 'avatars', `${person}.${normalizedExt}`), response.body, 'binary')
+            .then(() => `avatars/${name}`);
         });
     }
 
-
     const md = template(details, imageName);
-    await fs.writeFile(path.join(person, 'index.md'), md);
+    await fs.writeFile(path.join(base, `${person}.md`), md);
     console.log(`Wrote ${person}`);
   });
     
